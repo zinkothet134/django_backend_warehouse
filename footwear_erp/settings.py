@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/4.2/ref/settings/
 """
 import os
 from dotenv import load_dotenv
+from urllib.parse import urlparse, parse_qsl
 from pathlib import Path
 import environ
 from datetime import timedelta
@@ -101,24 +102,44 @@ WSGI_APPLICATION = 'footwear_erp.wsgi.application'
 #         'NAME': BASE_DIR / 'db.sqlite3',
 #     }
 # }
+# DATABASES = {
+
+#     "default": {
+
+#         "ENGINE": "django.db.backends.postgresql",
+
+#         "NAME": os.environ.get("DB_NAME"),
+
+#         "USER": os.environ.get("DB_USER"),
+
+#         "PASSWORD": os.environ.get("DB_PASSWORD"),
+
+#         "HOST": os.environ.get("DB_HOST", "127.0.0.1"),
+
+#         "PORT": os.environ.get("DB_PORT", "5432"),
+
+#     }
+
+# }
+
+# Replace the DATABASES section of your settings.py with this
+tmpPostgres = urlparse(os.getenv("DATABASE_URL"))
+
 DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': tmpPostgres.path.replace('/', ''),
+        'USER': tmpPostgres.username,
+        'PASSWORD': tmpPostgres.password,
+        'HOST': tmpPostgres.hostname,
+        'PORT': 5432,
+        'OPTIONS': dict(parse_qsl(tmpPostgres.query)),
+        # Important for Neon scale-to-zero behaviour
 
-    "default": {
+        "CONN_MAX_AGE": 0,
 
-        "ENGINE": "django.db.backends.postgresql",
-
-        "NAME": os.environ.get("DB_NAME"),
-
-        "USER": os.environ.get("DB_USER"),
-
-        "PASSWORD": os.environ.get("DB_PASSWORD"),
-
-        "HOST": os.environ.get("DB_HOST", "127.0.0.1"),
-
-        "PORT": os.environ.get("DB_PORT", "5432"),
-
+        "DISABLE_SERVER_SIDE_CURSORS": True,
     }
-
 }
 
 
