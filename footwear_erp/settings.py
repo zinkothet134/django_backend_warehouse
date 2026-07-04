@@ -11,7 +11,6 @@ https://docs.djangoproject.com/en/4.2/ref/settings/
 """
 import os
 from dotenv import load_dotenv
-from urllib.parse import urlparse, parse_qsl
 from pathlib import Path
 import environ
 from datetime import timedelta
@@ -36,33 +35,47 @@ environ.Env.read_env(os.path.join(BASE_DIR, '.env'))
 SECRET_KEY = env('SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = env('DEBUG')
+DEBUG = env.bool("DEBUG", default=False)
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = env.list(
+
+    "ALLOWED_HOSTS",
+
+    default=["localhost", "127.0.0.1"],
+
+)
 
 
 # Application definition
 
 INSTALLED_APPS = [
-    'django.contrib.admin',
-    'django.contrib.auth',
-    'django.contrib.contenttypes',
-    'django.contrib.sessions',
-    'django.contrib.messages',
-    'django.contrib.staticfiles',
-    'rest_framework',
-    'django_filters',
-    'rest_framework_simplejwt',
-    'corsheaders',
-    'accounts',
-    'products',
-    'inventory',
-    'sales',
-    'purchasing',
+    "django.contrib.admin",
+    "django.contrib.auth",
+    "django.contrib.contenttypes",
+    "django.contrib.sessions",
+    "django.contrib.messages",
+    "django.contrib.staticfiles",
+
+    # Third-party apps
+    "rest_framework",
+    "django_filters",
+    "rest_framework_simplejwt",
+    "corsheaders",
+
+    # Local apps
+    "accounts",
+    "products",
+    "inventory",
+    "sales",
+    "purchasing",
 ]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+
+    # Serves Django admin CSS/JS files in production.
+    "whitenoise.middleware.WhiteNoiseMiddleware",
+
     'corsheaders.middleware.CorsMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -103,43 +116,45 @@ WSGI_APPLICATION = 'footwear_erp.wsgi.application'
 #     }
 # }
 # DATABASES = {
-
 #     "default": {
-
 #         "ENGINE": "django.db.backends.postgresql",
-
 #         "NAME": os.environ.get("DB_NAME"),
-
 #         "USER": os.environ.get("DB_USER"),
-
 #         "PASSWORD": os.environ.get("DB_PASSWORD"),
-
 #         "HOST": os.environ.get("DB_HOST", "127.0.0.1"),
-
 #         "PORT": os.environ.get("DB_PORT", "5432"),
-
 #     }
-
 # }
 
 # Replace the DATABASES section of your settings.py with this
-tmpPostgres = urlparse(os.getenv("DATABASE_URL"))
+# tmpPostgres = urlparse(os.getenv("DATABASE_URL"))
 
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.postgresql',
+#         'NAME': tmpPostgres.path.replace('/', ''),
+#         'USER': tmpPostgres.username,
+#         'PASSWORD': tmpPostgres.password,
+#         'HOST': tmpPostgres.hostname,
+#         'PORT': 5432,
+#         'OPTIONS': dict(parse_qsl(tmpPostgres.query)),
+#         # Important for Neon scale-to-zero behaviour
+#         "CONN_MAX_AGE": 0,
+#         "DISABLE_SERVER_SIDE_CURSORS": True,
+#     }
+# }
+
+# Neon PostgreSQL database
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': tmpPostgres.path.replace('/', ''),
-        'USER': tmpPostgres.username,
-        'PASSWORD': tmpPostgres.password,
-        'HOST': tmpPostgres.hostname,
-        'PORT': 5432,
-        'OPTIONS': dict(parse_qsl(tmpPostgres.query)),
-        # Important for Neon scale-to-zero behaviour
+    "default": env.db("DATABASE_URL"),
+}
 
-        "CONN_MAX_AGE": 0,
-
-        "DISABLE_SERVER_SIDE_CURSORS": True,
-    }
+# Important for Neon serverless PostgreSQL.
+DATABASES["default"]["CONN_MAX_AGE"] = 0
+DATABASES["default"]["DISABLE_SERVER_SIDE_CURSORS"] = True
+DATABASES["default"]["OPTIONS"] = {
+    **DATABASES["default"].get("OPTIONS", {}),
+    "sslmode": "require",
 }
 
 
@@ -167,7 +182,7 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = 'en-us'
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = 'Asia/Yangon'
 
 USE_I18N = True
 
@@ -177,7 +192,13 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/4.2/howto/static-files/
 
-STATIC_URL = 'static/'
+STATIC_URL = '/static/'
+STATIC_ROOT = BASE_DIR / "staticfiles"
+STORAGES = {
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+    },
+}
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
@@ -216,11 +237,29 @@ EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 
 # Your real email credentials
-EMAIL_HOST_USER = env('EMAIL_HOST_USER') 
-EMAIL_HOST_PASSWORD = env('EMAIL_HOST_PASSWORD')
-DEFAULT_FROM_EMAIL = f"Chue Family Admin <info.chuefamily@gmail.com>"
+EMAIL_HOST_USER = env('EMAIL_HOST_USER', default="") 
+EMAIL_HOST_PASSWORD = env('EMAIL_HOST_PASSWORD', default="")
+DEFAULT_FROM_EMAIL = env(
+    "DEFAULT_FROM_EMAIL",
+    default="Chue Family Admin <info.chuefamily@gmail.com>",
+)
 
-CORS_ALLOWED_ORIGINS=[
-    'http://localhost:5173',
-]
 
+# React frontend CORS settings
+CORS_ALLOWED_ORIGINS = env.list(
+    "CORS_ALLOWED_ORIGINS",
+    default=[
+        "http://localhost:5173",
+    ],
+)
+
+CSRF_TRUSTED_ORIGINS = env.list(
+    "CSRF_TRUSTED_ORIGINS",
+    default=[],
+)
+
+
+# HTTPS / reverse proxy settings for Seenode
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+SESSION_COOKIE_SECURE = not DEBUG
+CSRF_COOKIE_SECURE = not DEBUG
