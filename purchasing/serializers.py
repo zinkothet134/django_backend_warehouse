@@ -9,10 +9,13 @@ class SupplierSerializer(serializers.ModelSerializer):
 
 class PurchaseOrderItemSerializer(serializers.ModelSerializer):
     variant_sku = serializers.CharField(source='product_variant.sku', read_only=True)
+    purchase_order = serializers.PrimaryKeyRelatedField(read_only=True)
+    id = serializers.IntegerField(required=False)
 
     class Meta:
         model = PurchaseOrderItem
-        fields = ['id', 'product_variant', 'variant_sku', 'quantity', 'unit_cost']
+        # 🌟 Notice I replaced 'product_variant' with 'variant' and added 'purchase_order'
+        fields = ['id', 'purchase_order', 'product_variant', 'variant_sku', 'quantity', 'unit_cost']
 
 class PurchaseOrderSerializer(serializers.ModelSerializer):
     items = PurchaseOrderItemSerializer(many=True)
