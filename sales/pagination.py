@@ -12,6 +12,6 @@ class POSPagination(PageNumberPagination):
     max_page_size = 50
 
 class StandardResultsSetPagination(PageNumberPagination):
-    page_size = 10 # Shows 10 customers per page (matches React frontend expectations)
+    page_size = 20 # Shows 10 customers per page (matches React frontend expectations)
     page_size_query_param = 'page_size'
     max_page_size = 100

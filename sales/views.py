@@ -1,4 +1,5 @@
 from rest_framework import viewsets, filters
+from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
@@ -12,6 +13,7 @@ from decimal import Decimal
 # If Customer is in a different app (like 'users.models'), import it from there.
 from .models import Order, OrderItem, Customer 
 from .serializers import OrderSerializer, CustomerSerializer
+from .pagination import StandardResultsSetPagination
 
 # ==========================================
 # 1. STANDARD VIEWSETS (For your router)
@@ -21,6 +23,24 @@ class OrderViewSet(viewsets.ModelViewSet):
     queryset = Order.objects.all().order_by('-created_at')
     serializer_class = OrderSerializer
     permission_classes = [IsAuthenticated]
+
+    # 👈 2. Attach the pagination class here
+    pagination_class = StandardResultsSetPagination
+
+    # 👈 3. Enable the filter backends
+    filter_backends = [DjangoFilterBackend, filter.SearchFilter, filter.OrderingFilter]
+    # 👈 4. Exact match filters (Great for dropdowns in React)
+    filterset_fields = ['status', 'order_type', 'payment_method', 'cashier']
+    
+    # 👈 5. Text search fields (Great for a search bar in React)
+    # The double underscore allows you to search across foreign keys!
+    search_fields = ['customer_name', 'customer__name', 'customer__email', 'customer__phone', 'cashier__username']
+    
+    # 👈 6. Optional: Allow React to sort columns
+    ordering_fields = ['created_at']
+    def perform_create(self, serializer):
+    # self.request.user is the person currently logged in (via their JWT token)
+        serializer.save(cashier=self.request.user)
 
 class CustomerViewSet(viewsets.ModelViewSet):
     serializer_class = CustomerSerializer
