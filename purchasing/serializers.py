@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from .models import Supplier, PurchaseOrder, PurchaseOrderItem
+from django.db import transaction
 
 class SupplierSerializer(serializers.ModelSerializer):
     class Meta:
@@ -20,8 +21,10 @@ class PurchaseOrderSerializer(serializers.ModelSerializer):
     class Meta:
         model = PurchaseOrder
         fields = ['id', 'supplier', 'supplier_name', 'order_date', 'expected_delivery', 'status', 'notes', 'items']
-        read_only_fields = ['order_date']
+        # read_only_fields = ['order_date'] 
 
+    
+    @transaction.atomic
     def create(self, validated_data):
         # Pop the nested items array out of the request data
         items_data = validated_data.pop('items', [])
@@ -39,6 +42,7 @@ class PurchaseOrderSerializer(serializers.ModelSerializer):
 
         return purchase_order
     
+    @transaction.atomic
     def update(self, instance, validated_data):
         # 1. Pop the nested items data out (if provided)
         items_data = validated_data.pop('items', None)
@@ -53,6 +57,7 @@ class PurchaseOrderSerializer(serializers.ModelSerializer):
             # Delete the old items and recreate the new ones
             instance.items.all().delete()
             for item_data in items_data:
+                item_data.pop("id", None)
                 PurchaseOrderItem.objects.create(
                     purchase_order=instance, 
                     **item_data
