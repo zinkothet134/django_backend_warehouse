@@ -152,10 +152,7 @@ DATABASES = {
 # Important for Neon serverless PostgreSQL.
 DATABASES["default"]["CONN_MAX_AGE"] = 0
 DATABASES["default"]["DISABLE_SERVER_SIDE_CURSORS"] = True
-DATABASES["default"]["OPTIONS"] = {
-    **DATABASES["default"].get("OPTIONS", {}),
-    "sslmode": "require",
-}
+
 
 
 # Password validation
