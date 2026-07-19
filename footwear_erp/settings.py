@@ -37,18 +37,18 @@ SECRET_KEY = env('SECRET_KEY')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = env.bool("DEBUG", default=False)
 
-ALLOWED_HOSTS = env.list(
-
-    "ALLOWED_HOSTS",
-
-    default=["localhost", "127.0.0.1"],
-
-)
+env_allowed_hosts = os.environ.get('ALLOWED_HOSTS', '.localhost,localhost,127.0.0.1')
+ALLOWED_HOSTS = env_allowed_hosts.split(',')
 
 
 # Application definition
 
-INSTALLED_APPS = [
+SHARED_APPS = (
+    'django_tenants',  # Must be first
+    'customers',       # Your Client and Domain models
+
+    # 🌟 CORE AUTHENTICATION (For Public Master Admin)
+    "accounts",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -61,22 +61,34 @@ INSTALLED_APPS = [
     "django_filters",
     "rest_framework_simplejwt",
     "corsheaders",
+)
 
-    # Local apps
+TENANT_APPS = (
+    # 🌟 CORE AUTHENTICATION (For Isolated Store Admins)
     "accounts",
+    "django.contrib.admin",
+    "django.contrib.auth",
+    "django.contrib.contenttypes",
+    "django.contrib.sessions",
+    "django.contrib.messages",
+
+    # Business Logic Apps
     "products",
     "inventory",
     "sales",
     "purchasing",
-]
+)
+
+INSTALLED_APPS = list(SHARED_APPS) + [app for app in TENANT_APPS if app not in SHARED_APPS]
 
 MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',
+    'django_tenants.middleware.main.TenantMainMiddleware', # 🌟 Add this at the absolute top
     'django.middleware.security.SecurityMiddleware',
 
     # Serves Django admin CSS/JS files in production.
     "whitenoise.middleware.WhiteNoiseMiddleware",
 
-    'corsheaders.middleware.CorsMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -85,7 +97,10 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-ROOT_URLCONF = 'footwear_erp.urls'
+# 1. Routes traffic for storea.localhost, storeb.localhost, etc.
+ROOT_URLCONF = 'footwear_erp.urls_tenant'
+
+# Public-schema routing is configured near the django-tenants settings below.
 
 TEMPLATES = [
     {
@@ -94,8 +109,8 @@ TEMPLATES = [
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
-                'django.template.context_processors.debug',
                 'django.template.context_processors.request',
+                'django.template.context_processors.debug',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
             ],
@@ -144,13 +159,20 @@ WSGI_APPLICATION = 'footwear_erp.wsgi.application'
 #     }
 # }
 
-# Neon PostgreSQL database
+
 DATABASES = {
     "default": env.db("DATABASE_URL"),
 }
 
-# Important for Neon serverless PostgreSQL.
-DATABASES["default"]["CONN_MAX_AGE"] = 0
+# OVERRIDE the default postgres engine with the tenant engine
+DATABASES['default']['ENGINE'] = 'django_tenants.postgresql_backend'
+
+DATABASE_ROUTERS = (
+    'django_tenants.routers.TenantSyncRouter',
+)
+
+# Neon can scale to zero, so avoid keeping stale persistent connections.
+DATABASES["default"]["CONN_MAX_AGE"] = env.int("DB_CONN_MAX_AGE", default=0)
 DATABASES["default"]["DISABLE_SERVER_SIDE_CURSORS"] = True
 
 
@@ -209,7 +231,7 @@ REST_FRAMEWORK = {
     ),
 }
 
-AUTH_USER_MODEL='accounts.User'
+AUTH_USER_MODEL = "accounts.User"
 
 SIMPLE_JWT = {
     # Change from minutes=5 to hours=12 (Covers a full warehouse shift)
@@ -241,22 +263,36 @@ DEFAULT_FROM_EMAIL = env(
     default="Chue Family Admin <info.chuefamily@gmail.com>",
 )
 
+# Allow credentials (cookies, auth headers) cross-origin
+CORS_ALLOW_CREDENTIALS = True
 
-# React frontend CORS settings
-CORS_ALLOWED_ORIGINS = env.list(
-    "CORS_ALLOWED_ORIGINS",
-    default=[
-        "http://localhost:5173",
-    ],
-)
+# Use Regex to dynamically allow ANY tenant subdomain on your local Vite port.
+# This prevents you from needing a massive list of every store URL.
+PROD_CORS_REGEX = env("PROD_CORS_REGEX", default=r"a^")
 
-CSRF_TRUSTED_ORIGINS = env.list(
-    "CSRF_TRUSTED_ORIGINS",
-    default=[],
-)
+CORS_ALLOWED_ORIGIN_REGEXES = [
+    r"^http://.*\.localhost:5173$",  # Matches storea.localhost:5173, storeb.localhost:5173
+    r"^http://localhost:5173$",      # Matches base localhost
+    r"^http://127\.0\.0\.1:5173$",   # Matches local IP
+    PROD_CORS_REGEX,  
+]
+
+PROD_CSRF_DOMAIN = env("PROD_CSRF_DOMAIN", default="https://chuefamily.online")
+
+CSRF_TRUSTED_ORIGINS = [
+    "http://localhost:5173",
+    "http://*.localhost:5173",       # Trusts all tenant subdomains making POST requests
+    PROD_CSRF_DOMAIN,
+]
 
 
-# HTTPS / reverse proxy settings for Seenode
+# HTTPS / reverse proxy settings
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 SESSION_COOKIE_SECURE = not DEBUG
 CSRF_COOKIE_SECURE = not DEBUG
+
+TENANT_MODEL = "customers.Client"  # app_name.ModelName
+TENANT_DOMAIN_MODEL = "customers.Domain"
+
+# Use the public URL configuration when the request host belongs to the public schema.
+PUBLIC_SCHEMA_URLCONF = "footwear_erp.urls_public"

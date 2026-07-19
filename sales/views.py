@@ -28,7 +28,7 @@ class OrderViewSet(viewsets.ModelViewSet):
     pagination_class = StandardResultsSetPagination
 
     # 👈 3. Enable the filter backends
-    filter_backends = [DjangoFilterBackend, filter.SearchFilter, filter.OrderingFilter]
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     # 👈 4. Exact match filters (Great for dropdowns in React)
     filterset_fields = ['status', 'order_type', 'payment_method', 'cashier']
     
