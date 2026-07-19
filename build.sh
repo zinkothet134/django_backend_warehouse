@@ -10,3 +10,4 @@ python manage.py collectstatic --no-input
 
 # Apply django-tenants migrations to both public and all tenant schemas
 python manage.py migrate_schemas
+

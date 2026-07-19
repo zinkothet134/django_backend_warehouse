@@ -1,0 +1,44 @@
+# Python bytecode and caches
+
+**pycache**/
+_.py[cod]
+_$py.class
+\*.so
+
+# Django specific
+
+\*.log
+db.sqlite3
+db.sqlite3-journal
+media/
+
+# Local Environment Variables (Critical for security)
+
+.env
+.env.local
+.env.\*
+
+# Virtual Environments
+
+venv/
+.venv/
+env/
+.env_dir/
+
+# Git repository
+
+.git/
+.gitignore
+
+# IDEs and OS specific
+
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Docker files (prevents copying the dockerfile into the image itself)
+
+Dockerfile
+.dockerignore
+docker-compose.yml
