@@ -265,10 +265,11 @@ DEFAULT_FROM_EMAIL = env(
 
 # Allow credentials (cookies, auth headers) cross-origin
 CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOWED_ORIGINS=env.list("CORS_ALLOWED_ORIGINS", default=[])
 
 # Use Regex to dynamically allow ANY tenant subdomain on your local Vite port.
 # This prevents you from needing a massive list of every store URL.
-PROD_CORS_REGEX = env("PROD_CORS_REGEX", default=r"a^")
+PROD_CORS_REGEX = env.str("PROD_CORS_REGEX", default=r"^$")
 
 CORS_ALLOWED_ORIGIN_REGEXES = [
     r"^http://.*\.localhost:5173$",  # Matches storea.localhost:5173, storeb.localhost:5173
@@ -277,13 +278,12 @@ CORS_ALLOWED_ORIGIN_REGEXES = [
     PROD_CORS_REGEX,  
 ]
 
-PROD_CSRF_DOMAIN = env("PROD_CSRF_DOMAIN", default="https://chuefamily.online")
+PROD_CSRF_ORIGINS = env.list("CSRF_TRUSTED_ORIGINS", default=[])
 
 CSRF_TRUSTED_ORIGINS = [
     "http://localhost:5173",
-    "http://*.localhost:5173",       # Trusts all tenant subdomains making POST requests
-    PROD_CSRF_DOMAIN,
-]
+    "http://*.localhost:5173",       # Trusts all local tenant subdomains
+] + PROD_CSRF_ORIGINS
 
 
 # HTTPS / reverse proxy settings
